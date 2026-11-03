@@ -56,6 +56,7 @@ function App() {
 
   const logout = async () => { await supabase.auth.signOut(); setTab("dashboard"); };
   const removeScan = async (id: string) => {
+    if (!window.confirm("Delete this scan from your history? This cannot be undone.")) return;
     const { error } = await supabase.from("scans").delete().eq("id", id);
     if (error) { toast.error("Could not delete scan."); return; }
     setHistory((h) => h.filter((s) => s.id !== id)); toast.success("Scan deleted.");
@@ -85,7 +86,7 @@ function App() {
           {tab === "scan" && (
             <Scanner onSaved={(s) => setHistory((h) => [s, ...h])} />
           )}
-          {tab === "dashboard" && <Dashboard history={history} />}
+          {tab === "dashboard" && <Dashboard history={history} onGoScan={() => setTab("scan")} />}
           {tab === "history" && <HistoryView history={history} onDelete={removeScan} onClearAll={clearAll} />}
           {tab === "learn" && <Learn />}
         </div>
@@ -365,7 +366,10 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
             )}
             {loading && (
               <div className="absolute inset-0 grid place-items-center bg-foreground/40 backdrop-blur-sm">
-                <div className="flex items-center gap-2 rounded-full bg-card px-4 py-2 text-sm font-medium"><Loader2 className="size-4 animate-spin" /> Analyzing…</div>
+                <div className="flex flex-col items-center gap-2 rounded-2xl bg-card px-5 py-4 text-sm font-medium">
+                  <Loader2 className="size-5 animate-spin text-primary" /> Analyzing…
+                  <span className="text-xs font-normal text-muted-foreground">This usually takes a few seconds.</span>
+                </div>
               </div>
             )}
           </div>
@@ -377,6 +381,9 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
               <Button className="h-11 flex-1 rounded-xl" onClick={analyze} disabled={loading}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Analyze Waste
               </Button>
+            )}
+            {image && !result && !loading && (
+              <Button variant="outline" className="h-11 rounded-xl" onClick={() => fileRef.current?.click()}><Upload className="size-4" /> Replace</Button>
             )}
             {image && !result && !loading && <Button variant="outline" className="h-11 rounded-xl" onClick={reset}>Clear</Button>}
           </div>
@@ -430,7 +437,7 @@ function ResultCard({ r }: { r: ScanResult }) {
 }
 
 /* ---------------- Dashboard ---------------- */
-function Dashboard({ history }: { history: Scan[] }) {
+function Dashboard({ history, onGoScan }: { history: Scan[]; onGoScan: () => void }) {
   const s = stats(history);
   const cards = [
     { label: "Total Scans", value: s.total, icon: ScanLine, tone: "bg-ocean" },
@@ -453,7 +460,7 @@ function Dashboard({ history }: { history: Scan[] }) {
           </div>
         ))}
       </div>
-      {s.total > 0 && (
+      {s.total > 0 ? (
         <div className="glass mt-6 rounded-3xl p-6">
           <p className="font-semibold">Category split</p>
           <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-muted">
@@ -462,7 +469,18 @@ function Dashboard({ history }: { history: Scan[] }) {
           <ul className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
             {cards.slice(1).map((c) => <li key={c.label} className="flex items-center gap-2"><span className={`${c.tone} size-3 rounded-full`} />{c.label}: {c.value} ({Math.round((c.value / s.total) * 100)}%)</li>)}
           </ul>
-          <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><Gauge className="size-4" /> Average confidence of classified scans: {s.avgConfidence}%</p>
+          <div className="mt-5 rounded-2xl bg-secondary/70 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold"><Gauge className="size-4" /> Average confidence</p>
+            <p className="mt-1 text-2xl font-bold text-primary">{s.avgConfidence}%</p>
+            <p className="text-xs text-muted-foreground">Mean self-reported confidence across the {s.total - s.uncertain} scans the model classified confidently. It reflects the model's certainty, not measured accuracy.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="glass mt-6 flex flex-col items-center rounded-3xl p-10 text-center">
+          <ScanLine className="size-12 text-primary" />
+          <p className="mt-4 font-semibold">No scans yet</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Your impact story starts with your first scan. Photograph a waste item and we'll tell you which bin it belongs in.</p>
+          <Button onClick={onGoScan} className="mt-5 rounded-full"><ScanLine className="size-4" /> Scan your first item</Button>
         </div>
       )}
       {history.length > 0 && (
@@ -471,7 +489,7 @@ function Dashboard({ history }: { history: Scan[] }) {
           <ul className="mt-3 divide-y divide-border">
             {history.slice(0, 5).map((h) => (
               <li key={h.id} className="flex items-center gap-3 py-3">
-                <img src={h.image} alt="" className="size-12 rounded-xl object-cover" />
+                <img src={h.image} alt="" loading="lazy" className="size-12 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1"><p className="truncate font-medium">{h.item}</p><p className="text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString()}</p></div>
                 <CategoryBadge c={h.category} />
               </li>
@@ -562,34 +580,40 @@ function HistoryView({ history, onDelete, onClearAll }: { history: Scan[]; onDel
 
 /* ---------------- Learn ---------------- */
 function Learn() {
-  const bins = [
-    { tone: "bg-bin-green", icon: Leaf, title: "Green Bin", sub: "Organic / Wet Waste", items: ["Food scraps", "Fruit & vegetable peels", "Tea leaves, flowers", "Natural garden waste"] },
-    { tone: "bg-bin-blue", icon: Recycle, title: "Blue Bin", sub: "Dry Recyclable Waste", items: ["Clean plastic bottles", "Paper & newspapers", "Cardboard boxes", "Rinsed metal cans"] },
-    { tone: "bg-bin-red", icon: Cpu, title: "Red Bin", sub: "Hazardous & E-Waste", items: ["Aerosol spray cans", "Batteries", "Circuit boards & phones", "Chemical tins, paint"] },
-    { tone: "bg-bin-black", icon: Trash2, title: "Black Bin", sub: "Residual Waste", items: ["Multi-layer wrappers", "Biscuit & chip packets", "Non-recyclable laminates", "Soiled tissues"] },
+  const categories = [
+    { tone: "bg-bin-green", icon: Leaf, title: "Organic", sub: "Wet waste", bin: "Green Bin", items: ["Food scraps", "Fruit & vegetable peels", "Tea leaves & flowers", "Garden and plant waste"], tip: "Keep wet waste out of plastic bags — bagged peels can't compost." },
+    { tone: "bg-bin-blue", icon: Recycle, title: "Recyclable", sub: "Dry recyclable waste", bin: "Blue Bin", items: ["Clean plastic bottles", "Paper & newspapers", "Cardboard boxes", "Rinsed cans & glass"], tip: "Rinse containers and flatten cardboard before disposal." },
+    { tone: "bg-bin-red", icon: AlertTriangle, title: "Hazardous", sub: "Household hazardous waste", bin: "Red Bin (hazardous depot)", items: ["Batteries", "Aerosol spray cans", "Paint & chemicals", "Expired medicines"], tip: "Never mix with regular waste — hand it over at a collection centre." },
+    { tone: "bg-bin-red", icon: Cpu, title: "E-Waste", sub: "Electronic waste", bin: "Red Bin (special e-waste bin)", items: ["Phones & tablets", "Cables & chargers", "Circuit boards", "Small appliances"], tip: "Wipe personal data first, then use a certified e-waste recycler." },
+    { tone: "bg-bin-black", icon: Trash2, title: "Residual", sub: "Non-recyclable waste", bin: "Black Bin", items: ["Chip & biscuit wrappers", "Multi-layer laminates", "Soiled tissues & wipes", "Broken ceramics"], tip: "If it can't be recycled or composted, it belongs here." },
   ];
-  const [open, setOpen] = useState<string | null>("Green Bin");
   return (
     <section>
       <h1 className="text-3xl font-bold">Segregation Rules Hub</h1>
-      <p className="mt-1 text-muted-foreground">Tap a bin to see what belongs inside.</p>
-      <div className="mt-6 grid gap-5 sm:grid-cols-2">
-        {bins.map(({ tone, icon: Icon, title, sub, items }) => {
-          const active = open === title;
-          return (
-            <button key={title} onClick={() => setOpen(active ? null : title)} className={`glass rounded-3xl p-6 text-left transition-all hover:-translate-y-1 ${active ? "ring-2 ring-primary" : ""}`}>
-              <div className="flex items-center gap-4">
-                <span className={`${tone} grid size-12 place-items-center rounded-2xl text-primary-foreground`}><Icon className="size-6" /></span>
-                <div><h3 className="text-lg font-bold">{title}</h3><p className="text-sm text-muted-foreground">{sub}</p></div>
-              </div>
-              {active && (
-                <ul className="fade-up mt-5 grid grid-cols-2 gap-2">
-                  {items.map((i) => <li key={i} className="rounded-xl bg-secondary/70 px-3 py-2 text-sm">{i}</li>)}
-                </ul>
-              )}
-            </button>
-          );
-        })}
+      <p className="mt-1 text-muted-foreground">What goes in each bin — and why.</p>
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map(({ tone, icon: Icon, title, sub, bin, items, tip }) => (
+          <article key={title} className="glass flex flex-col rounded-3xl p-6">
+            <div className="flex items-center gap-4">
+              <span className={`${tone} grid size-12 shrink-0 place-items-center rounded-2xl text-primary-foreground`}><Icon className="size-6" /></span>
+              <div><h3 className="text-lg font-bold">{title}</h3><p className="text-sm text-muted-foreground">{sub}</p></div>
+            </div>
+            <ul className="mt-5 space-y-2">
+              {items.map((i) => <li key={i} className="rounded-xl bg-secondary/70 px-3 py-2 text-sm">{i}</li>)}
+            </ul>
+            <p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground"><Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />{tip}</p>
+            <p className="mt-auto pt-4 text-sm font-semibold text-primary">Goes to: {bin}</p>
+          </article>
+        ))}
+        <article className="glass flex flex-col rounded-3xl p-6">
+          <div className="flex items-center gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-muted-foreground text-primary-foreground"><HelpCircle className="size-6" /></span>
+            <div><h3 className="text-lg font-bold">Uncertain</h3><p className="text-sm text-muted-foreground">When the scanner can't decide</p></div>
+          </div>
+          <p className="mt-5 text-sm">If the photo is blurry, shows several mixed items, or the model's confidence falls below 55%, EcoLens reports <strong>Uncertain</strong> and recommends a rescan instead of guessing a bin.</p>
+          <p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground"><Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />One clear item per photo gives the best result.</p>
+          <p className="mt-auto pt-4 text-sm font-semibold text-primary">Action: retake the photo</p>
+        </article>
       </div>
     </section>
   );
