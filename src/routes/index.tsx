@@ -465,7 +465,7 @@ function Dashboard({ history, onGoScan }: { history: Scan[]; onGoScan: () => voi
           <div className="mt-5 rounded-2xl bg-secondary/70 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold"><Gauge className="size-4" /> Average confidence</p>
             <p className="mt-1 text-2xl font-bold text-primary">{s.avgConfidence}%</p>
-            <p className="text-xs text-muted-foreground">Mean self-reported confidence across the {confidentCount(s.total, s.uncertain)} scans the model classified confidently. It reflects the model's certainty, not measured accuracy.</p>
+            <p className="text-xs text-muted-foreground">Mean self-reported confidence across the {s.total - s.uncertain} scans the model classified confidently. It reflects the model's certainty, not measured accuracy.</p>
           </div>
         </div>
       ) : (
@@ -492,10 +492,6 @@ function Dashboard({ history, onGoScan }: { history: Scan[]; onGoScan: () => voi
       )}
     </section>
   );
-}
-
-function confidentCount(total: number, uncertain: number): number {
-  return total - uncertain;
 }
 
 /* ---------------- History ---------------- */
