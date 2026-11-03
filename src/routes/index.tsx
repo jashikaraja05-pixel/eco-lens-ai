@@ -85,7 +85,7 @@ function App() {
           {tab === "scan" && (
             <Scanner onSaved={(s) => setHistory((h) => [s, ...h])} />
           )}
-          {tab === "dashboard" && <Dashboard history={history} />}
+          {tab === "dashboard" && <Dashboard history={history} onGoScan={() => setTab("scan")} />}
           {tab === "history" && <HistoryView history={history} onDelete={removeScan} onClearAll={clearAll} />}
           {tab === "learn" && <Learn />}
         </div>
@@ -430,7 +430,7 @@ function ResultCard({ r }: { r: ScanResult }) {
 }
 
 /* ---------------- Dashboard ---------------- */
-function Dashboard({ history }: { history: Scan[] }) {
+function Dashboard({ history, onGoScan }: { history: Scan[]; onGoScan: () => void }) {
   const s = stats(history);
   const cards = [
     { label: "Total Scans", value: s.total, icon: ScanLine, tone: "bg-ocean" },
@@ -453,7 +453,7 @@ function Dashboard({ history }: { history: Scan[] }) {
           </div>
         ))}
       </div>
-      {s.total > 0 && (
+      {s.total > 0 ? (
         <div className="glass mt-6 rounded-3xl p-6">
           <p className="font-semibold">Category split</p>
           <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-muted">
@@ -462,7 +462,18 @@ function Dashboard({ history }: { history: Scan[] }) {
           <ul className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
             {cards.slice(1).map((c) => <li key={c.label} className="flex items-center gap-2"><span className={`${c.tone} size-3 rounded-full`} />{c.label}: {c.value} ({Math.round((c.value / s.total) * 100)}%)</li>)}
           </ul>
-          <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><Gauge className="size-4" /> Average confidence of classified scans: {s.avgConfidence}%</p>
+          <div className="mt-5 rounded-2xl bg-secondary/70 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold"><Gauge className="size-4" /> Average confidence</p>
+            <p className="mt-1 text-2xl font-bold text-primary">{s.avgConfidence}%</p>
+            <p className="text-xs text-muted-foreground">Mean self-reported confidence across the {confidentCount(s.total, s.uncertain)} scans the model classified confidently. It reflects the model's certainty, not measured accuracy.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="glass mt-6 flex flex-col items-center rounded-3xl p-10 text-center">
+          <ScanLine className="size-12 text-primary" />
+          <p className="mt-4 font-semibold">No scans yet</p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">Your impact story starts with your first scan. Photograph a waste item and we'll tell you which bin it belongs in.</p>
+          <Button onClick={onGoScan} className="mt-5 rounded-full"><ScanLine className="size-4" /> Scan your first item</Button>
         </div>
       )}
       {history.length > 0 && (
@@ -471,7 +482,7 @@ function Dashboard({ history }: { history: Scan[] }) {
           <ul className="mt-3 divide-y divide-border">
             {history.slice(0, 5).map((h) => (
               <li key={h.id} className="flex items-center gap-3 py-3">
-                <img src={h.image} alt="" className="size-12 rounded-xl object-cover" />
+                <img src={h.image} alt="" loading="lazy" className="size-12 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1"><p className="truncate font-medium">{h.item}</p><p className="text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString()}</p></div>
                 <CategoryBadge c={h.category} />
               </li>
@@ -481,6 +492,10 @@ function Dashboard({ history }: { history: Scan[] }) {
       )}
     </section>
   );
+}
+
+function confidentCount(total: number, uncertain: number): number {
+  return total - uncertain;
 }
 
 /* ---------------- History ---------------- */
