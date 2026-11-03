@@ -23,6 +23,11 @@ describe("classification normalization", () => {
   it("rejects non-image uploads", () => {
     expect(imageSchema.safeParse("data:text/plain;base64,aGVsbG8=").success).toBe(false);
   });
+  it("rejects images over the character limit", () => {
+    const oversized = `data:image/jpeg;base64,${"A".repeat(8_000_000)}`;
+    expect(oversized.length).toBeGreaterThan(8_000_000);
+    expect(imageSchema.safeParse(oversized).success).toBe(false);
+  });
 });
 
 describe("dashboard stats", () => {
