@@ -56,6 +56,7 @@ function App() {
 
   const logout = async () => { await supabase.auth.signOut(); setTab("dashboard"); };
   const removeScan = async (id: string) => {
+    if (!window.confirm("Delete this scan from your history? This cannot be undone.")) return;
     const { error } = await supabase.from("scans").delete().eq("id", id);
     if (error) { toast.error("Could not delete scan."); return; }
     setHistory((h) => h.filter((s) => s.id !== id)); toast.success("Scan deleted.");
@@ -365,7 +366,10 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
             )}
             {loading && (
               <div className="absolute inset-0 grid place-items-center bg-foreground/40 backdrop-blur-sm">
-                <div className="flex items-center gap-2 rounded-full bg-card px-4 py-2 text-sm font-medium"><Loader2 className="size-4 animate-spin" /> Analyzing…</div>
+                <div className="flex flex-col items-center gap-2 rounded-2xl bg-card px-5 py-4 text-sm font-medium">
+                  <Loader2 className="size-5 animate-spin text-primary" /> Analyzing…
+                  <span className="text-xs font-normal text-muted-foreground">This usually takes a few seconds.</span>
+                </div>
               </div>
             )}
           </div>
@@ -377,6 +381,9 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
               <Button className="h-11 flex-1 rounded-xl" onClick={analyze} disabled={loading}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Analyze Waste
               </Button>
+            )}
+            {image && !result && !loading && (
+              <Button variant="outline" className="h-11 rounded-xl" onClick={() => fileRef.current?.click()}><Upload className="size-4" /> Replace</Button>
             )}
             {image && !result && !loading && <Button variant="outline" className="h-11 rounded-xl" onClick={reset}>Clear</Button>}
           </div>
