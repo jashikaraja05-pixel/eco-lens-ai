@@ -580,34 +580,40 @@ function HistoryView({ history, onDelete, onClearAll }: { history: Scan[]; onDel
 
 /* ---------------- Learn ---------------- */
 function Learn() {
-  const bins = [
-    { tone: "bg-bin-green", icon: Leaf, title: "Green Bin", sub: "Organic / Wet Waste", items: ["Food scraps", "Fruit & vegetable peels", "Tea leaves, flowers", "Natural garden waste"] },
-    { tone: "bg-bin-blue", icon: Recycle, title: "Blue Bin", sub: "Dry Recyclable Waste", items: ["Clean plastic bottles", "Paper & newspapers", "Cardboard boxes", "Rinsed metal cans"] },
-    { tone: "bg-bin-red", icon: Cpu, title: "Red Bin", sub: "Hazardous & E-Waste", items: ["Aerosol spray cans", "Batteries", "Circuit boards & phones", "Chemical tins, paint"] },
-    { tone: "bg-bin-black", icon: Trash2, title: "Black Bin", sub: "Residual Waste", items: ["Multi-layer wrappers", "Biscuit & chip packets", "Non-recyclable laminates", "Soiled tissues"] },
+  const categories = [
+    { tone: "bg-bin-green", icon: Leaf, title: "Organic", sub: "Wet waste", bin: "Green Bin", items: ["Food scraps", "Fruit & vegetable peels", "Tea leaves & flowers", "Garden and plant waste"], tip: "Keep wet waste out of plastic bags — bagged peels can't compost." },
+    { tone: "bg-bin-blue", icon: Recycle, title: "Recyclable", sub: "Dry recyclable waste", bin: "Blue Bin", items: ["Clean plastic bottles", "Paper & newspapers", "Cardboard boxes", "Rinsed cans & glass"], tip: "Rinse containers and flatten cardboard before disposal." },
+    { tone: "bg-bin-red", icon: AlertTriangle, title: "Hazardous", sub: "Household hazardous waste", bin: "Red Bin (hazardous depot)", items: ["Batteries", "Aerosol spray cans", "Paint & chemicals", "Expired medicines"], tip: "Never mix with regular waste — hand it over at a collection centre." },
+    { tone: "bg-bin-red", icon: Cpu, title: "E-Waste", sub: "Electronic waste", bin: "Red Bin (special e-waste bin)", items: ["Phones & tablets", "Cables & chargers", "Circuit boards", "Small appliances"], tip: "Wipe personal data first, then use a certified e-waste recycler." },
+    { tone: "bg-bin-black", icon: Trash2, title: "Residual", sub: "Non-recyclable waste", bin: "Black Bin", items: ["Chip & biscuit wrappers", "Multi-layer laminates", "Soiled tissues & wipes", "Broken ceramics"], tip: "If it can't be recycled or composted, it belongs here." },
   ];
-  const [open, setOpen] = useState<string | null>("Green Bin");
   return (
     <section>
       <h1 className="text-3xl font-bold">Segregation Rules Hub</h1>
-      <p className="mt-1 text-muted-foreground">Tap a bin to see what belongs inside.</p>
-      <div className="mt-6 grid gap-5 sm:grid-cols-2">
-        {bins.map(({ tone, icon: Icon, title, sub, items }) => {
-          const active = open === title;
-          return (
-            <button key={title} onClick={() => setOpen(active ? null : title)} className={`glass rounded-3xl p-6 text-left transition-all hover:-translate-y-1 ${active ? "ring-2 ring-primary" : ""}`}>
-              <div className="flex items-center gap-4">
-                <span className={`${tone} grid size-12 place-items-center rounded-2xl text-primary-foreground`}><Icon className="size-6" /></span>
-                <div><h3 className="text-lg font-bold">{title}</h3><p className="text-sm text-muted-foreground">{sub}</p></div>
-              </div>
-              {active && (
-                <ul className="fade-up mt-5 grid grid-cols-2 gap-2">
-                  {items.map((i) => <li key={i} className="rounded-xl bg-secondary/70 px-3 py-2 text-sm">{i}</li>)}
-                </ul>
-              )}
-            </button>
-          );
-        })}
+      <p className="mt-1 text-muted-foreground">What goes in each bin — and why.</p>
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map(({ tone, icon: Icon, title, sub, bin, items, tip }) => (
+          <article key={title} className="glass flex flex-col rounded-3xl p-6">
+            <div className="flex items-center gap-4">
+              <span className={`${tone} grid size-12 shrink-0 place-items-center rounded-2xl text-primary-foreground`}><Icon className="size-6" /></span>
+              <div><h3 className="text-lg font-bold">{title}</h3><p className="text-sm text-muted-foreground">{sub}</p></div>
+            </div>
+            <ul className="mt-5 space-y-2">
+              {items.map((i) => <li key={i} className="rounded-xl bg-secondary/70 px-3 py-2 text-sm">{i}</li>)}
+            </ul>
+            <p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground"><Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />{tip}</p>
+            <p className="mt-auto pt-4 text-sm font-semibold text-primary">Goes to: {bin}</p>
+          </article>
+        ))}
+        <article className="glass flex flex-col rounded-3xl p-6">
+          <div className="flex items-center gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-muted-foreground text-primary-foreground"><HelpCircle className="size-6" /></span>
+            <div><h3 className="text-lg font-bold">Uncertain</h3><p className="text-sm text-muted-foreground">When the scanner can't decide</p></div>
+          </div>
+          <p className="mt-5 text-sm">If the photo is blurry, shows several mixed items, or the model's confidence falls below 55%, EcoLens reports <strong>Uncertain</strong> and recommends a rescan instead of guessing a bin.</p>
+          <p className="mt-4 flex items-start gap-2 text-sm text-muted-foreground"><Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />One clear item per photo gives the best result.</p>
+          <p className="mt-auto pt-4 text-sm font-semibold text-primary">Action: retake the photo</p>
+        </article>
       </div>
     </section>
   );
