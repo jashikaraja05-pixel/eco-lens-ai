@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Leaf, LogOut, ScanLine, LayoutDashboard, History, BookOpen, Upload, Camera, RotateCcw,
-  Loader2, Sparkles, CheckCircle2, Recycle, AlertTriangle, Trash2, Cpu, UserX, HelpCircle, Gauge,
+  Loader2, Sparkles, CheckCircle2, Recycle, AlertTriangle, Trash2, Cpu, UserX, HelpCircle, Gauge, Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { classifyWaste, deleteMyAccount } from "@/lib/classify.functions";
-import type { ScanResult } from "@/lib/scan-schema";
+import type { ScanResult, StoredCategory } from "@/lib/scan-schema";
 import { BINS, rowToScan, stats, type Scan, type ScanRow } from "@/lib/eco-store";
 
 export const Route = createFileRoute("/")({
@@ -485,12 +485,24 @@ function Dashboard({ history }: { history: Scan[] }) {
 
 /* ---------------- History ---------------- */
 function HistoryView({ history, onDelete, onClearAll }: { history: Scan[]; onDelete: (id: string) => void; onClearAll: () => void }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<StoredCategory | "all">("all");
+  const q = query.trim().toLowerCase();
+  const shown = history.filter((h) => (filter === "all" || h.category === filter) && (!q || h.item.toLowerCase().includes(q)));
+  const filters: { id: StoredCategory | "all"; label: string }[] = [
+    { id: "all", label: "All" },
+    ...(Object.keys(BINS) as StoredCategory[]).map((c) => ({ id: c, label: BINS[c].label })),
+  ];
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Scan History</h1>
-          <p className="mt-1 text-muted-foreground">{history.length} scan{history.length === 1 ? "" : "s"} saved to your account.</p>
+          <p className="mt-1 text-muted-foreground">
+            {shown.length === history.length
+              ? `${history.length} scan${history.length === 1 ? "" : "s"} saved to your account.`
+              : `${shown.length} of ${history.length} scan${history.length === 1 ? "" : "s"} shown.`}
+          </p>
         </div>
         {history.length > 0 && (
           <Button variant="outline" className="rounded-full text-destructive hover:text-destructive" onClick={onClearAll}>
@@ -498,11 +510,29 @@ function HistoryView({ history, onDelete, onClearAll }: { history: Scan[]; onDel
           </Button>
         )}
       </div>
+      {history.length > 0 && (
+        <div className="glass mt-4 flex flex-wrap items-center gap-2 rounded-3xl p-4">
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input className="h-10 rounded-xl pl-9" aria-label="Search scans" type="search" placeholder="Search by item name…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by category">
+            {filters.map(({ id, label }) => (
+              <Button variant="ghost" key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${filter === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
       {history.length === 0 ? (
         <div className="glass mt-6 rounded-3xl p-10 text-center text-muted-foreground">No scans yet — head to Scan Waste to start.</div>
+      ) : shown.length === 0 ? (
+        <div className="glass mt-6 rounded-3xl p-10 text-center text-muted-foreground">No scans match your search or filter.</div>
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {history.map((h) => (
+          {shown.map((h) => (
             <article key={h.id} className="glass overflow-hidden rounded-3xl">
               <div className="relative">
                 <img src={h.image} alt={h.item} className="aspect-video w-full object-cover" />

@@ -21,7 +21,7 @@ EcoLens AI lets anyone photograph a waste item (upload or live camera). A vision
 - Image upload + live camera capture, client-side resize, server-side type/size/magic-byte validation
 - Real vision-model classification with confidence, explanation, bin and disposal steps
 - Uncertain-result handling; explicit error state — no result is shown or saved if the AI fails
-- History stored per user in a database with row-level security; delete single scan, clear all, delete account
+- History stored per user in a database with row-level security; delete single scan, clear all, delete account, search and filter by category
 - Dashboard from stored scans: category counts, category split, average confidence, recent scans
 - Learn hub with bin rules
 
